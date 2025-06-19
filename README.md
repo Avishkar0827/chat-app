@@ -1,6 +1,5 @@
 # React Chat APP -YapYap
 
-## Live-https://chat-app-yapyap.vercel.app/
 
 ## Overview
 A real-time chat application built with React + Vite for the frontend and Firebase for backend services. This app allows users to:
@@ -14,10 +13,19 @@ Create and manage group chats.
 Seamlessly communicate with other users.
 
 ## Features
+
 ✅ Real-time Messaging – Instant message updates using Firebase Firestore.
+
+
 ✅ Edit & Delete Messages – Users can modify or remove their sent messages.
+
+
 ✅ Group Chats – Create and participate in group conversations.
+
+
 ✅ User Authentication – Secure login/signup via Firebase Auth.
+
+
 ✅ Responsive UI – Works smoothly on desktop and mobile.
 
 ## Technologies Used
