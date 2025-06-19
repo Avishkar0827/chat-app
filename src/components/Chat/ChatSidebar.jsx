@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { collection, query, onSnapshot, addDoc, serverTimestamp, getDocs, updateDoc, doc } from "firebase/firestore"
+import { collection, query, onSnapshot, addDoc, serverTimestamp, getDocs, updateDoc, doc, deleteDoc } from "firebase/firestore"
 import { signOut } from "firebase/auth"
 import { db, auth } from "../../firebase/config.js"
 import { useAuth } from "../../Contexts/AuthContext.jsx"
@@ -14,6 +14,11 @@ const ChatSidebar = ({ selectedChat, onSelectChat }) => {
   const [selectedUsers, setSelectedUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [confirmDelete, setConfirmDelete] = useState({
+    show: false,
+    chatId: null,
+    chatName: ""
+  })
   const { currentUser } = useAuth()
 
   // Listen to all users
@@ -35,7 +40,6 @@ const ChatSidebar = ({ selectedChat, onSelectChat }) => {
         querySnapshot.forEach((doc) => {
           const userData = doc.data()
           console.log("User document:", doc.id, userData)
-          // Don't include current user in the list
           if (userData.uid !== currentUser.uid) {
             usersArray.push({ ...userData, id: doc.id })
           }
@@ -72,12 +76,10 @@ const ChatSidebar = ({ selectedChat, onSelectChat }) => {
         querySnapshot.forEach((doc) => {
           const chatData = doc.data()
           console.log("Chat document:", doc.id, chatData)
-          // Only include chats where current user is a participant
           if (chatData.participants && chatData.participants.includes(currentUser.uid)) {
             chatsArray.push({ ...chatData, id: doc.id })
           }
         })
-        // Sort by last message time
         chatsArray.sort((a, b) => {
           const aTime = a.lastMessageTime?.toDate() || new Date(0)
           const bTime = b.lastMessageTime?.toDate() || new Date(0)
@@ -96,7 +98,6 @@ const ChatSidebar = ({ selectedChat, onSelectChat }) => {
 
   const handleLogout = async () => {
     try {
-      // Update user status to offline before signing out
       if (currentUser) {
         await updateDoc(doc(db, "users", currentUser.uid), {
           isOnline: false,
@@ -112,7 +113,6 @@ const ChatSidebar = ({ selectedChat, onSelectChat }) => {
   const startDirectChat = async (otherUser) => {
     console.log("Starting direct chat with:", otherUser)
     try {
-      // Check if direct chat already exists
       const existingChatQuery = query(collection(db, "chats"))
       const existingChats = await getDocs(existingChatQuery)
       let existingDirectChat = null
@@ -136,8 +136,6 @@ const ChatSidebar = ({ selectedChat, onSelectChat }) => {
         return
       }
 
-      // Create new direct chat
-      console.log("Creating new direct chat...")
       const newChat = {
         type: "direct",
         participants: [currentUser.uid, otherUser.uid],
@@ -202,12 +200,34 @@ const ChatSidebar = ({ selectedChat, onSelectChat }) => {
       const docRef = await addDoc(collection(db, "chats"), newGroupChat)
       onSelectChat({ ...newGroupChat, id: docRef.id })
 
-      // Reset form
       setGroupName("")
       setSelectedUsers([])
       setShowCreateGroup(false)
     } catch (error) {
       console.error("Error creating group chat:", error)
+    }
+  }
+
+  const deleteGroupChat = async () => {
+    if (!confirmDelete.chatId) return
+    
+    try {
+      const chatToDelete = chats.find(chat => chat.id === confirmDelete.chatId)
+      if (!chatToDelete || chatToDelete.createdBy !== currentUser.uid) {
+        alert("Only the group creator can delete this group")
+        return
+      }
+
+      await deleteDoc(doc(db, "chats", confirmDelete.chatId))
+      
+      if (selectedChat?.id === confirmDelete.chatId) {
+        onSelectChat(null)
+      }
+      
+      setConfirmDelete({ show: false, chatId: null, chatName: "" })
+    } catch (error) {
+      console.error("Error deleting group chat:", error)
+      alert("Failed to delete group")
     }
   }
 
@@ -241,13 +261,37 @@ const ChatSidebar = ({ selectedChat, onSelectChat }) => {
 
   return (
     <div className="w-80 bg-white border-r border-gray-300 flex flex-col h-full">
+      {/* Confirmation Dialog */}
+      {confirmDelete.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg max-w-md w-full">
+            <h3 className="text-lg font-semibold mb-4">Delete Group</h3>
+            <p className="mb-4">Are you sure you want to delete "{confirmDelete.chatName}"? This action cannot be undone.</p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setConfirmDelete({ show: false, chatId: null, chatName: "" })}
+                className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={deleteGroupChat}
+                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="p-4 border-b border-gray-300">
         <div className="flex items-center justify-between mb-4">
-           <div className="flex items-center gap-2">
-   <span className="text-2xl">🦜 </span>
-          <h2 className="text-xl font-semibold text-gray-800">YapYap</h2>
-        </div>
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">🦜 </span>
+            <h2 className="text-xl font-semibold text-gray-800">YapYap</h2>
+          </div>
           <button onClick={handleLogout} className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600">
             Logout
           </button>
@@ -309,25 +353,45 @@ const ChatSidebar = ({ selectedChat, onSelectChat }) => {
               {chats.map((chat) => (
                 <div
                   key={chat.id}
-                  onClick={() => onSelectChat(chat)}
                   className={`p-3 rounded-lg cursor-pointer transition-colors ${
                     selectedChat?.id === chat.id ? "bg-blue-100" : "hover:bg-gray-100"
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
-                        {chat.type === "group" ? "👥" : "👤"}
+                  <div onClick={() => onSelectChat(chat)}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
+                          {chat.type === "group" ? "👥" : "👤"}
+                        </div>
+                        <div>
+                          <div className="font-medium text-sm">{getChatDisplayName(chat)}</div>
+                          <div className="text-xs text-gray-500 truncate">{getChatLastMessage(chat)}</div>
+                        </div>
                       </div>
-                      <div>
-                        <div className="font-medium text-sm">{getChatDisplayName(chat)}</div>
-                        <div className="text-xs text-gray-500 truncate">{getChatLastMessage(chat)}</div>
-                      </div>
+                      {chat.type === "group" && (
+                        <div className="text-xs text-gray-400">{chat.participants?.length} members</div>
+                      )}
                     </div>
-                    {chat.type === "group" && (
-                      <div className="text-xs text-gray-400">{chat.participants?.length} members</div>
-                    )}
                   </div>
+                  
+                  {/* Delete button for group chats */}
+                  {chat.type === "group" && chat.createdBy === currentUser.uid && (
+                    <div className="flex justify-end mt-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setConfirmDelete({
+                            show: true,
+                            chatId: chat.id,
+                            chatName: chat.name
+                          })
+                        }}
+                        className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50"
+                      >
+                        Delete Group
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -338,7 +402,6 @@ const ChatSidebar = ({ selectedChat, onSelectChat }) => {
         <div className="p-4 border-t border-gray-300">
           <h3 className="text-lg font-semibold text-gray-800 mb-3">Users ({users.length})</h3>
 
-          {/* Debug info */}
           {error && <div className="text-xs text-red-500 mb-2 p-2 bg-red-50 rounded">Error: {error}</div>}
 
           {loading ? (
