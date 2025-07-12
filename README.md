@@ -44,9 +44,6 @@ Deployment: Vercel
 
 ![image](https://github.com/user-attachments/assets/78514411-5b21-40f4-b93c-4b79cbcabc42)
 
-![image](https://github.com/user-attachments/assets/a9c5c8d6-f2d8-4ddc-afdb-0284560c9e77)
-
-![image](https://github.com/user-attachments/assets/eee9a45a-08bc-40fd-870d-d9549817bd1e)
 
 ![image](https://github.com/user-attachments/assets/b525ad61-53b4-4763-a99b-5e3de5e9c61b)
 
@@ -54,7 +51,6 @@ Deployment: Vercel
 
 ![image](https://github.com/user-attachments/assets/946fd30b-f074-41b0-b462-56bc3090dbaf)
 
-![image](https://github.com/user-attachments/assets/4a518420-e278-4f49-9cf9-2d06f1cd7028)
 
 ![image](https://github.com/user-attachments/assets/b5083a66-568b-4490-8d0a-69d52269b8a6)
 
